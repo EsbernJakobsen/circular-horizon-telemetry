@@ -1,6 +1,4 @@
-import time
 import sys
-import os
 sys.path.append('/home/pi/CH_Telemetry/DFRobot_I2C_Multiplexer/raspberrypi')
 
 
