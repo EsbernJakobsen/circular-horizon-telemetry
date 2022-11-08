@@ -1,7 +1,6 @@
 import sys
 import time
 import datetime
-
 sys.path.append('/home/pi/CH_Telemetry/DFRobot_I2C_Multiplexer/raspberrypi')
 sys.path.append('/home/pi/CH_Telemetry/DFRobot_MAX31855/raspberrypi/python')
 sys.path.append('/home/pi/CH_Telemetry/DFRobot_MPX5700/python/raspberrypi')
@@ -18,7 +17,7 @@ from influxdb import InfluxDBClient
 
 class Sensor:
 
-    def __init__(self, system, location, multiplexer_port, sensor_type):
+    def __init__(self, system: str, location: str, multiplexer_port: int, sensor_type: str):
         self.system = system
         self.location = location
         self.multiplexer_port = multiplexer_port
@@ -39,10 +38,6 @@ class Sensor:
             pressure_sensor.set_mean_sample_size(5)  # Set up sample size
             return pressure_sensor.get_pressure_value_kpa(1)
 
-    # def __getitem__(self, item):  # Enable .method syntax on attributes
-    #    return getattr(self, item)
-
-
 ############################################################################################################
 
 # Define function to log the data to InfluxDB
@@ -61,10 +56,9 @@ def send_to_influxdb(system, location, timestamp, measurement):
     ]
     client.write_points(payload)
 
-
 ############################################################################################################
 
-# Define function to print out sensors connected to the multiplexer
+# Define function to print out sensors connected to the multiplexer. Useful to see if RPi is seeing them or not!
 def scan_multiplexer(i2c_multi_addr):
     """Simple function to scan a multiplexer connected to the RPi, and print out what type of sensors are connected and at which ports.
     Input is the multiplexer I2C address. This defaults to 0x70, but is changeable up to 0x77."""
@@ -121,35 +115,38 @@ pressure_sensor = DFRobot_MPX5700_I2C(0x01, 0x16)
 
 ############################################################################################################
 
-# CREATE OBJECT INSTANCES OF ALL SENSORS (with multiplexer ports included):
-reactor_bottom = Sensor('Reactor', 'reactor_bottom', multiplexer_port=0, sensor_type='temp_digital')
-reactor_middle = Sensor('Reactor', 'reactor_middle', multiplexer_port=1, sensor_type='temp_digital')
-reactor_top = Sensor('Reactor', 'reactor_top', multiplexer_port=2, sensor_type='temp_digital')
-condenser_exit = Sensor('Condenser', 'condenser_exit', multiplexer_port=4, sensor_type='temp_digital')
-reactor_exhaust = Sensor('Reactor', 'exhaust', multiplexer_port=6, sensor_type='temp_thermocouple')
-cyclone_inlet = Sensor('Cyclone filter', 'cyclone_inlet', multiplexer_port=7, sensor_type='temp_thermocouple')
+# CREATE OBJECT INSTANCES OF ALL CONNECTED SENSORS (with multiplexer ports included):
+# N.B. this is where you can add/remove sensors !!!
 
-sensors = [reactor_bottom, reactor_middle, reactor_top, condenser_exit, reactor_exhaust, cyclone_inlet]
+connected_sensors = [Sensor('Reactor', 'reactor_bottom', multiplexer_port=0, sensor_type='temp_digital'),
+                     Sensor('Reactor', 'reactor_middle', multiplexer_port=1, sensor_type='temp_digital'),
+                     Sensor('Reactor', 'reactor_top', multiplexer_port=2, sensor_type='temp_digital'),
+                     Sensor('Condenser', 'condenser_exit', multiplexer_port=4, sensor_type='temp_digital'),
+                     Sensor('Reactor', 'exhaust', multiplexer_port=6, sensor_type='temp_thermocouple'),
+                     Sensor('Cyclone filter', 'cyclone_inlet', multiplexer_port=7, sensor_type='temp_thermocouple')]
+
 ############################################################################################################
 
 # Define duration of data collection.
-program_duration = float(input('Enter (in seconds) how long you would like to collect data for.'))
+program_duration = float(input('Enter (in minutes) how long you would like to collect data for.'))
 
 # Start data collection.
 start_time = time.time()
 end_time = time.time()
 while True:
     print(f'Collecting sensor information. Elapsed time: {int(end_time - start_time)} seconds.')
-    for sensor in sensors:
+    for sensor in connected_sensors:
         sensor.select_port()  # Select multiplexer port to communicate with.
         timestamp = datetime.datetime.utcnow()  # Take timestamp
         measurement = sensor.take_measurement()  # Take measurement
         send_to_influxdb(sensor.system, sensor.location, timestamp, measurement)  # Send to influxdb
 
-    time.sleep(5)  #
+    time.sleep(4)  # Change the interval between logging of data points here
     end_time = time.time()
 
-    if (end_time - start_time) > program_duration:
+    if ((end_time - start_time) / 60) > program_duration:
         print('Run finished. Ending data collection.')
         break
 
+# For troubleshooting sensor connections, run the below line to see what RPi is seeing.
+scan_multiplexer(0x70)
