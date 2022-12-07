@@ -87,7 +87,7 @@ def scan_multiplexer(i2c_multi_addr):
 ############################################################################################################
 
 # Set up InfluxDB
-host = '192.168.0.166'  # Change this as necessary
+host = '172.20.10.12'  # Change this as necessary, for iPhone hotspot: 172.20.10.12. For Zurich router: 192.168.0.166
 port = 8086
 username = 'CH_Horizon'  # Change this as necessary
 password = 'RaspberryChar'  # Change this as necessary
@@ -104,10 +104,10 @@ multiplexer = DFRobot_I2C_Multiplexer.DFRobot_I2C_Multiplexer(0x70)  # Default m
 
 ############################################################################################################
 
-# INITIATE SENSOR OBJECTS:
+# INITIATE SENSOR OBJECTS: N.B. Comment out any sensors here that are not in use!
 # Amplifier for thermocouple
-thermocouple = MCP9600(i2c_addr=0x66)  # Default i2c address of amplifier is 0x66.
-thermocouple.set_thermocouple_type('N')  # Set thermocouple type as 'N'
+# thermocouple = MCP9600(i2c_addr=0x66)  # Default i2c address of amplifier is 0x66.
+# thermocouple.set_thermocouple_type('N')  # Set thermocouple type as 'N'
 # Digital temperature sensor. All the temperature sensors use the same I2C address, so we just select them individually later in the for loop.
 temp_sensor = DFRobot_MAX31855(0x01, 0x10)
 # Digital pressure sensor object. Pressure sensor default I2C address is 0x16.
@@ -121,18 +121,21 @@ pressure_sensor = DFRobot_MPX5700_I2C(0x01, 0x16)
 connected_sensors = [Sensor('Reactor', 'reactor_bottom', multiplexer_port=0, sensor_type='temp_digital'),
                      Sensor('Reactor', 'reactor_middle', multiplexer_port=1, sensor_type='temp_digital'),
                      Sensor('Reactor', 'reactor_top', multiplexer_port=2, sensor_type='temp_digital'),
-                     Sensor('Condenser', 'condenser_exit', multiplexer_port=4, sensor_type='temp_digital'),
-                     Sensor('Reactor', 'exhaust', multiplexer_port=6, sensor_type='temp_thermocouple'),
-                     Sensor('Cyclone filter', 'cyclone_inlet', multiplexer_port=7, sensor_type='temp_thermocouple')]
+                     Sensor('Condenser', 'condenser_exit', multiplexer_port=4, sensor_type='temp_digital')]  # ,
+                     #Sensor('Reactor', 'exhaust', multiplexer_port=6, sensor_type='temp_thermocouple'),
+                     #Sensor('Cyclone filter', 'cyclone_inlet', multiplexer_port=7, sensor_type='temp_thermocouple')]
 
 ############################################################################################################
 
 # Define duration of data collection.
-program_duration = float(input('Enter (in minutes) how long you would like to collect data for.'))
+program_duration = float(input('Enter (in minutes) how long you would like to collect data for: '))
+interval = float(input('Enter (in seconds) at what interval you want to collect at: '))  # Change the interval between logging of data points here
 
 # Start data collection.
 start_time = time.time()
 end_time = time.time()
+print(f'\nStarting sensor data collection. \nGo to http://{host}:3000 to view data on Grafana Dashboard. \nUser: "admin" Password: "RaspberryChar"\n')
+
 while True:
     print(f'Collecting sensor information. Elapsed time: {int(end_time - start_time)} seconds.')
     for sensor in connected_sensors:
@@ -141,7 +144,7 @@ while True:
         measurement = sensor.take_measurement()  # Take measurement
         send_to_influxdb(sensor.system, sensor.location, timestamp, measurement)  # Send to influxdb
 
-    time.sleep(4)  # Change the interval between logging of data points here
+    time.sleep(interval)
     end_time = time.time()
 
     if ((end_time - start_time) / 60) > program_duration:
