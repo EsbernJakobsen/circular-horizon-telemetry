@@ -141,7 +141,7 @@ while True:
     for sensor in connected_sensors:
         sensor.select_port()  # Select multiplexer port to communicate with.
         timestamp = datetime.datetime.utcnow()  # Take timestamp
-        measurement = sensor.take_measurement()  # Take measurement
+        measurement = float(sensor.take_measurement())  # Take measurement
         send_to_influxdb(sensor.system, sensor.location, timestamp, measurement)  # Send to influxdb
 
     time.sleep(interval)
